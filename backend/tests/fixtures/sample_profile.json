@@ -1,0 +1,18 @@
+{
+  "name": "Aarav Patel",
+  "age": 26,
+  "gender": "male",
+  "marital_status": "never_married",
+  "state_ut": "Maharashtra",
+  "residence": "urban",
+  "qualification": "graduate",
+  "is_student": false,
+  "employment_status": "employed",
+  "has_work_experience": true,
+  "years_of_experience": 3,
+  "current_sector": "it_tech",
+  "aspiring_sector": "it_tech",
+  "benefit_intent": "credit_loan",
+  "annual_family_income_inr": 600000,
+  "confirmed": true
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jansevaai"
+version = "1.0.0"
+description = "Verifiable, Hallucination-Free Government Scheme Matching for Indian Citizens"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "python-multipart>=0.0.12",
+    "tzdata>=2024.2",
+    "edge-tts>=6.1.12",
+    "beautifulsoup4>=4.12.0",
+    "playwright>=1.48.0",
+    "scrapy>=2.11.0",
+    "selenium>=4.25.0",
+    "sqlalchemy>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.27.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
+
+[tool.setuptools.packages.find]
+include = ["backend*", "Crawler*"]
