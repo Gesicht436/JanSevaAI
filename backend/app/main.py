@@ -30,16 +30,12 @@ def create_app() -> FastAPI:
         version="1.0.0"
     )
 
-    # CORS Middleware
-    origins = settings.cors_origin_list
-    if not origins or "*" in origins:
-        origins = ["http://localhost:5173", "http://localhost:3000", "http://localhost:8000"]
-
+    # CORS Middleware - permit local dev and any Vercel/cloud deployment domain
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_origins=["*"],
+        allow_credentials=False,
+        allow_methods=["*"],
         allow_headers=["*"],
     )
 
@@ -64,15 +60,20 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = req_id
         return response
 
-    # Register API Endpoints
-    app.include_router(health.router, prefix="/api", tags=["health"])
-    app.include_router(catalog.router, prefix="/api", tags=["catalog"])
-    app.include_router(schemes.router, prefix="/api", tags=["schemes"])
-    app.include_router(profile.router, prefix="/api", tags=["profile"])
-    app.include_router(match.router, prefix="/api", tags=["match"])
-    app.include_router(explain.router, prefix="/api", tags=["explain"])
-    app.include_router(tts.router, prefix="/api", tags=["tts"])
-    app.include_router(admin.router, prefix="/api", tags=["admin"])
+    # Register API Endpoints (both under /api prefix and root for flexible Vercel rewrite compatibility)
+    api_routers = [
+        (health.router, "health"),
+        (catalog.router, "catalog"),
+        (schemes.router, "schemes"),
+        (profile.router, "profile"),
+        (match.router, "match"),
+        (explain.router, "explain"),
+        (tts.router, "tts"),
+        (admin.router, "admin"),
+    ]
+    for r, tag in api_routers:
+        app.include_router(r, prefix="/api", tags=[tag])
+        app.include_router(r, tags=[tag])
 
     # Mount built SPA frontend if present
     dist_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"

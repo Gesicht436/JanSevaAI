@@ -75,7 +75,8 @@ def _call_gemini(
     }).encode("utf-8")
 
     req = urllib.request.Request(endpoint, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=25) as resp:
+    # Cap timeout at 8s to stay well below Vercel's 10s serverless ceiling
+    with urllib.request.urlopen(req, timeout=8) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         return data["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -105,7 +106,7 @@ def _call_openrouter(system: str, user: str, temp: float = 0.0) -> Optional[str]
         }
         try:
             req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=5) as resp:
                 if resp.status == 200:
                     data = json.loads(resp.read().decode("utf-8"))
                     content = data["choices"][0]["message"]["content"]

@@ -12,7 +12,14 @@ from ..config import settings, Settings, get_settings
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(settings.resolved_database_path, check_same_thread=False)
+    db_path = settings.resolved_database_path
+    try:
+        # Open in read-only and immutable mode (disables all file locks & journal creation in serverless)
+        uri = f"file:{db_path.resolve().as_posix()}?mode=ro&immutable=1"
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    except Exception:
+        # Fallback to standard connect
+        conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -21,7 +28,12 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
 
 
 def get_db_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(settings.resolved_database_path, check_same_thread=False)
+    db_path = settings.resolved_database_path
+    try:
+        uri = f"file:{db_path.resolve().as_posix()}?mode=ro&immutable=1"
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+    except Exception:
+        conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 

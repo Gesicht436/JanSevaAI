@@ -54,16 +54,20 @@ class Settings(BaseSettings):
         if path.is_absolute() and path.is_file():
             return path
         candidates = [
-            PROJECT_ROOT / path,
             Path(__file__).resolve().parent.parent / "Datasets" / "schemes.db",
             Path(__file__).resolve().parent.parent.parent / "Datasets" / "schemes.db",
+            PROJECT_ROOT / path,
             Path.cwd() / path,
             Path.cwd() / "Datasets" / "schemes.db",
+            Path.cwd() / "backend" / "Datasets" / "schemes.db",
+            Path("/var/task/Datasets/schemes.db"),
+            Path("/var/task/backend/Datasets/schemes.db"),
         ]
         for candidate in candidates:
             if candidate.is_file():
-                return candidate
-        return PROJECT_ROOT / path
+                return candidate.resolve()
+        # Fallback to local workspace relative
+        return (PROJECT_ROOT / path).resolve()
 
     @property
     def cors_origin_list(self) -> list[str]:

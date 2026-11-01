@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "functions": {
+    "api/**/*.py": {
+      "includeFiles": "Datasets/**,backend/**"
+    }
+  },
   "services": {
     "frontend": {
       "root": "frontend",
@@ -7,12 +13,13 @@
     },
     "backend": {
       "root": "backend",
-      "framework": "fastapi"
+      "framework": "fastapi",
+      "entrypoint": "main:app"
     }
   },
   "rewrites": [
     {
-      "source": "/api/:path*",
+      "source": "/api/(.*)",
       "destination": { "service": "backend" }
     },
     {
