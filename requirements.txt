@@ -1,0 +1,8 @@
+fastapi>=0.115.0
+uvicorn>=0.32.0
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+python-multipart>=0.0.12
+tzdata>=2024.2
+edge-tts>=6.1.12
+beautifulsoup4>=4.12.0

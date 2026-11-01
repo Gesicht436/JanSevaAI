@@ -51,7 +51,19 @@ class Settings(BaseSettings):
     @property
     def resolved_database_path(self) -> Path:
         path = Path(self.DATABASE_PATH)
-        return path if path.is_absolute() else PROJECT_ROOT / path
+        if path.is_absolute() and path.is_file():
+            return path
+        candidates = [
+            PROJECT_ROOT / path,
+            Path(__file__).resolve().parent.parent / "Datasets" / "schemes.db",
+            Path(__file__).resolve().parent.parent.parent / "Datasets" / "schemes.db",
+            Path.cwd() / path,
+            Path.cwd() / "Datasets" / "schemes.db",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return PROJECT_ROOT / path
 
     @property
     def cors_origin_list(self) -> list[str]:

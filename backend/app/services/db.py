@@ -12,7 +12,7 @@ from ..config import settings, Settings, get_settings
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
-    conn = sqlite3.connect(settings.DATABASE_PATH, check_same_thread=False)
+    conn = sqlite3.connect(settings.resolved_database_path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn

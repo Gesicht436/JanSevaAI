@@ -7,7 +7,7 @@ name = "jansevaai"
 version = "1.0.0"
 description = "Verifiable, Hallucination-Free Government Scheme Matching for Indian Citizens"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
