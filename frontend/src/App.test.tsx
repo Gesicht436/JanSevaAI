@@ -34,6 +34,10 @@ describe('JanSevaAI Unified App Component', () => {
                     categories: ['Banking, Financial Services and Insurance'],
                     verdict: 'eligible',
                     benefit_snippet: 'Collateral-free micro loans up to Rs 10 Lakhs.',
+                    description: 'Provides financial support and subsidized credit up to 10 lakhs for small businesses.',
+                    myscheme_url: 'https://www.myscheme.gov.in/schemes/mudra-loan',
+                    required_documents: ['Aadhaar Card', 'PAN Card', 'Proof of business address'],
+                    specialized_criteria: ['Candidate must present a feasible business project proposal'],
                     verified_ratio: 1.0,
                     missing_fields: [],
                     criteria_results: [],
@@ -65,7 +69,10 @@ describe('JanSevaAI Unified App Component', () => {
     fireEvent.click(itPresetBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Pradhan Mantri MUDRA Yojana/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Pradhan Mantri MUDRA Yojana/i)[0]).toBeInTheDocument();
+      expect(screen.getByText(/3 Docs Required/i)).toBeInTheDocument();
+      expect(screen.getByText(/1 Dept Checks/i)).toBeInTheDocument();
+      expect(screen.getByText(/myScheme/i)).toBeInTheDocument();
     });
   });
 });

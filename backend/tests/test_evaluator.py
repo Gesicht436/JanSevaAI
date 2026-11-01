@@ -62,4 +62,7 @@ def test_engine_performance_under_50ms():
 
     assert latency_ms < 50.0, f"MatchEngine took {latency_ms:.2f}ms (must be < 50ms)"
     assert res.counts.eligible + res.counts.needs_more_info + res.counts.ineligible + res.counts.closed == 200
+    assert len(res.results.eligible[0].myscheme_url) > 0
+    assert "myscheme.gov.in" in res.results.eligible[0].myscheme_url
+    assert isinstance(res.results.eligible[0].required_documents, list)
     conn.close()

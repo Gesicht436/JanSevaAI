@@ -74,6 +74,7 @@ export interface CriterionResult {
   quote_verified: boolean;
   source_line: number;
   note?: string | null;
+  is_specialized?: boolean;
 }
 
 export interface SchemeVerdictResult {
@@ -86,6 +87,10 @@ export interface SchemeVerdictResult {
   close_date?: string | null;
   verdict: 'eligible' | 'needs_more_info' | 'ineligible' | 'closed';
   benefit_snippet: string;
+  description?: string | null;
+  myscheme_url?: string;
+  required_documents?: string[];
+  specialized_criteria?: string[];
   verified_ratio: number;
   contextual_match_reason?: string | null;
   missing_fields: string[];

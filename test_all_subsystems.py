@@ -164,6 +164,11 @@ def run_tests():
     total_sum = match_res.counts.eligible + match_res.counts.needs_more_info + match_res.counts.ineligible + match_res.counts.closed
     log_test("Scheme Tier Conservation", total_sum == total_schemes, f"Sum of tiers: {total_sum} == {total_schemes}")
 
+    sample_scheme = match_res.results.eligible[0]
+    log_test("myScheme URL Provisioning", "myscheme.gov.in" in sample_scheme.myscheme_url, f"URL: {sample_scheme.myscheme_url}")
+    log_test("Required Documents Included", isinstance(sample_scheme.required_documents, list) and len(sample_scheme.required_documents) > 0, f"Found {len(sample_scheme.required_documents)} docs for {sample_scheme.slug}")
+    log_test("Specialized Criteria Captured", isinstance(sample_scheme.specialized_criteria, list), f"Found {len(sample_scheme.specialized_criteria)} dept prereqs")
+
     # ------------------------------------------------------------------
     # 5. Rule E9 Compliance (Human-in-the-Loop Confirmation)
     # ------------------------------------------------------------------
@@ -281,7 +286,7 @@ def run_tests():
 
     first_slug = r_schemes.json()["schemes"][0]["slug"]
     r_scheme_detail = client.get(f"/api/schemes/{first_slug}")
-    log_test(f"GET /api/schemes/{first_slug}", r_scheme_detail.status_code == 200 and "name" in r_scheme_detail.json())
+    log_test(f"GET /api/schemes/{first_slug}", r_scheme_detail.status_code == 200 and "name" in r_scheme_detail.json() and "myscheme_url" in r_scheme_detail.json())
 
     r_scheme_crit = client.get(f"/api/schemes/{first_slug}/criteria")
     log_test(f"GET /api/schemes/{first_slug}/criteria", r_scheme_crit.status_code == 200 and "criteria" in r_scheme_crit.json())

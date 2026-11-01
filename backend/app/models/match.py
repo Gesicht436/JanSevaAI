@@ -3,7 +3,7 @@ Matching Response Models
 """
 
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from .profile import CitizenProfile
 
 
@@ -17,6 +17,7 @@ class CriterionResult(BaseModel):
     quote_verified: bool
     source_line: int
     note: Optional[str] = None
+    is_specialized: bool = False
 
 
 class SchemeVerdictResult(BaseModel):
@@ -29,6 +30,10 @@ class SchemeVerdictResult(BaseModel):
     close_date: Optional[str]
     verdict: str                # "eligible", "needs_more_info", "ineligible", "closed"
     benefit_snippet: str
+    description: Optional[str] = None
+    myscheme_url: str = ""
+    required_documents: List[str] = Field(default_factory=list)
+    specialized_criteria: List[str] = Field(default_factory=list)
     verified_ratio: float
     contextual_match_reason: Optional[str] = None
     missing_fields: List[str]

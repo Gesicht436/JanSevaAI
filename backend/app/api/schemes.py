@@ -5,6 +5,7 @@ Scheme Details, Criteria & Change Audit API
 import json
 import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
+from ..config import settings
 from ..services.db import get_db
 
 router = APIRouter()
@@ -46,6 +47,8 @@ def get_scheme_by_slug(slug: str, db: sqlite3.Connection = Depends(get_db)):
     # Fetch documents
     cursor.execute("SELECT line_index, document_text FROM scheme_documents WHERE slug = ? ORDER BY line_index", (slug,))
     scheme["documents"] = [dict(r) for r in cursor.fetchall()]
+    scheme["myscheme_url"] = f"{settings.MYSCHEME_BASE_URL.rstrip('/')}/schemes/{slug}"
+    scheme["description"] = scheme.get("brief_description") or ""
 
     return scheme
 

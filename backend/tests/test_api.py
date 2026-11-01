@@ -68,3 +68,8 @@ def test_match_confirmed_succeeds_and_tiers():
     assert "results" in data
     assert data["counts"]["eligible"] > 0
     assert len(data["followup_fields"]) > 0
+    first_eligible = data["results"]["eligible"][0]
+    assert "myscheme.gov.in" in first_eligible["myscheme_url"]
+    assert "description" in first_eligible
+    assert isinstance(first_eligible["required_documents"], list)
+    assert isinstance(first_eligible["specialized_criteria"], list)

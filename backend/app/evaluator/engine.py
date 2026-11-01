@@ -11,6 +11,7 @@ import sqlite3
 from typing import Any, Dict, List, Optional, Set, Tuple
 from zoneinfo import ZoneInfo
 
+from ..config import settings
 from ..models.profile import CitizenProfile
 from ..models.match import (
     CriterionResult,
@@ -74,6 +75,17 @@ class MatchEngine:
         for row in criteria_rows:
             criteria_by_slug[row["slug"]].append(dict(row))
 
+        # 3. Bulk pre-fetch all required documents across the catalog (1 single query)
+        cursor.execute("""
+            SELECT slug, line_index, document_text
+            FROM scheme_documents
+            ORDER BY slug ASC, line_index ASC
+        """)
+        documents_by_slug = defaultdict(list)
+        for d in cursor.fetchall():
+            documents_by_slug[d["slug"]].append(d["document_text"])
+
+        base_myscheme = settings.MYSCHEME_BASE_URL.rstrip('/')
         counts = MatchCounts()
         grouped_results = MatchResultsGrouped()
         prev_slugs_set = set(previous_unlocked_slugs or [])
@@ -91,6 +103,17 @@ class MatchEngine:
             brief = s["brief_description"] or ""
             v_ratio = s["verified_ratio"] if s["verified_ratio"] is not None else 1.0
 
+            myscheme_url = f"{base_myscheme}/schemes/{slug}"
+            req_docs = documents_by_slug.get(slug, [])
+
+            # Extract criteria and specialized / department prerequisite rules
+            criteria = criteria_by_slug.get(slug, [])
+            scheme_specialized_criteria = [
+                c["source_quote"] for c in criteria
+                if (c["operator"] == "unverifiable" or c["field"] is None) and c.get("source_quote")
+            ]
+            specialized_list = list(dict.fromkeys(scheme_specialized_criteria))
+
             # -------------------------------------------------------------
             # STAGE 1: Deterministic Hard-Gate Pruning (< 15ms)
             # -------------------------------------------------------------
@@ -100,7 +123,9 @@ class MatchEngine:
                 grouped_results.closed.append(SchemeVerdictResult(
                     slug=slug, name=name, ministry_or_department=min_dept, level=level,
                     beneficiary_states=b_states, categories=categories, close_date=close_date,
-                    verdict="closed", benefit_snippet=brief, verified_ratio=v_ratio,
+                    verdict="closed", benefit_snippet=brief, description=brief,
+                    myscheme_url=myscheme_url, required_documents=req_docs,
+                    specialized_criteria=specialized_list, verified_ratio=v_ratio,
                     missing_fields=[], criteria_results=[]
                 ))
                 continue
@@ -112,7 +137,9 @@ class MatchEngine:
                 grouped_results.ineligible.append(SchemeVerdictResult(
                     slug=slug, name=name, ministry_or_department=min_dept, level=level,
                     beneficiary_states=b_states, categories=categories, close_date=close_date,
-                    verdict="ineligible", benefit_snippet=brief, verified_ratio=v_ratio,
+                    verdict="ineligible", benefit_snippet=brief, description=brief,
+                    myscheme_url=myscheme_url, required_documents=req_docs,
+                    specialized_criteria=specialized_list, verified_ratio=v_ratio,
                     missing_fields=[],
                     criteria_results=[
                         CriterionResult(
@@ -120,7 +147,8 @@ class MatchEngine:
                             field="state_ut", result="fail",
                             quote=f"Scheme available only in: {', '.join(b_states)}",
                             quote_verified=True, source_line=0,
-                            note=f"Resident of {profile.state_ut} is outside scheme boundary"
+                            note=f"Resident of {profile.state_ut} is outside scheme boundary",
+                            is_specialized=False
                         )
                     ]
                 ))
@@ -129,7 +157,6 @@ class MatchEngine:
             # -------------------------------------------------------------
             # STAGE 2: Contextual Nuance Evaluation (Kleene 3-Valued Logic)
             # -------------------------------------------------------------
-            criteria = criteria_by_slug.get(slug, [])
             group_map = defaultdict(list)
             for c in criteria:
                 group_map[c["group_id"]].append(c)
@@ -145,6 +172,7 @@ class MatchEngine:
                     c_op = c["operator"]
                     c_val = json.loads(c["value"]) if c["value"] is not None else None
                     c_kind = c["kind"]
+                    is_spec = bool(c_op == "unverifiable" or c_field is None)
 
                     actual_fact = getattr(profile, c_field, None) if c_field else None
                     res = evaluate_operator(
@@ -159,7 +187,7 @@ class MatchEngine:
                         criterion_id=c["criterion_id"], kind=c_kind, group_id=g_id,
                         field=c_field, result=res, quote=c["source_quote"],
                         quote_verified=bool(c["quote_verified"]), source_line=c["source_line"],
-                        note=c.get("note")
+                        note=c.get("note"), is_specialized=is_spec
                     ))
                     g_c_results.append(res)
 
@@ -188,7 +216,9 @@ class MatchEngine:
             verdict_obj = SchemeVerdictResult(
                 slug=slug, name=name, ministry_or_department=min_dept, level=level,
                 beneficiary_states=b_states, categories=categories, close_date=close_date,
-                verdict=verdict, benefit_snippet=brief, verified_ratio=v_ratio,
+                verdict=verdict, benefit_snippet=brief, description=brief,
+                myscheme_url=myscheme_url, required_documents=req_docs,
+                specialized_criteria=specialized_list, verified_ratio=v_ratio,
                 missing_fields=sorted(list(scheme_missing_fields)),
                 criteria_results=scheme_criteria_results,
                 unlocked_in_this_round=unlocked_now

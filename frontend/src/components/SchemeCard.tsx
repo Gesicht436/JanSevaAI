@@ -1,7 +1,17 @@
 import React, { useState } from 'react';
 import { SchemeVerdictResult } from '../types';
 import { speakText, stopSpeaking } from '../services/tts';
-import { Volume2, VolumeX, CheckCircle, AlertCircle, Sparkles, ChevronRight } from 'lucide-react';
+import { 
+  Volume2, 
+  VolumeX, 
+  CheckCircle, 
+  AlertCircle, 
+  Sparkles, 
+  ChevronRight, 
+  ExternalLink,
+  FileText,
+  Building2
+} from 'lucide-react';
 
 interface SchemeCardProps {
   scheme: SchemeVerdictResult;
@@ -18,10 +28,12 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({ scheme, onSelect }) => {
       setIsPlaying(false);
     } else {
       setIsPlaying(true);
-      const textToSpeak = `${scheme.name}. Under this scheme: ${scheme.benefit_snippet}`;
+      const textToSpeak = `${scheme.name}. Under this scheme: ${scheme.description || scheme.benefit_snippet}`;
       speakText(textToSpeak, () => setIsPlaying(false));
     }
   };
+
+  const mySchemeUrl = scheme.myscheme_url || `https://www.myscheme.gov.in/schemes/${scheme.slug}`;
 
   const getVerdictBadge = () => {
     if (scheme.verdict === 'eligible') {
@@ -85,30 +97,67 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({ scheme, onSelect }) => {
           {scheme.ministry_or_department || 'Government of India'}
         </p>
 
-        {/* Benefit Snippet */}
+        {/* Scheme Description / Benefit Snippet */}
         <p className="text-xs text-slate-600 mt-3 line-clamp-3 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-          {scheme.benefit_snippet || 'Provides financial assistance, subsidies, or institutional support to eligible beneficiaries.'}
+          {scheme.description || scheme.benefit_snippet || 'Provides financial assistance, subsidies, or institutional support to eligible beneficiaries.'}
         </p>
+
+        {/* Requirement Indicators (Docs count & Specialized Dept checks) */}
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          {scheme.required_documents && scheme.required_documents.length > 0 && (
+            <span
+              className="flex items-center space-x-1 text-[11px] font-semibold text-slate-700 bg-slate-100/90 px-2 py-0.5 rounded-md"
+              title={`${scheme.required_documents.length} official documents required`}
+            >
+              <FileText className="w-3 h-3 text-slate-500" />
+              <span>{scheme.required_documents.length} Docs Required</span>
+            </span>
+          )}
+
+          {scheme.specialized_criteria && scheme.specialized_criteria.length > 0 && (
+            <span
+              className="flex items-center space-x-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md"
+              title={`${scheme.specialized_criteria.length} specialized criteria require department self-verification`}
+            >
+              <Building2 className="w-3 h-3 text-amber-600" />
+              <span>{scheme.specialized_criteria.length} Dept Checks</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Card Footer Actions */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
-        <button
-          type="button"
-          onClick={handleAudioToggle}
-          className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border transition-colors ${
-            isPlaying
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'text-slate-600 hover:text-slate-900 bg-slate-50 border-slate-200'
-          }`}
-          title="Listen to explanation"
-        >
-          {isPlaying ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-blue-600" />}
-          <span>{isPlaying ? 'Stop' : 'Listen'}</span>
-        </button>
+      <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={handleAudioToggle}
+            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border transition-colors ${
+              isPlaying
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'text-slate-600 hover:text-slate-900 bg-slate-50 border-slate-200'
+            }`}
+            title="Listen to explanation"
+          >
+            {isPlaying ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-blue-600" />}
+            <span>{isPlaying ? 'Stop' : 'Listen'}</span>
+          </button>
+
+          <a
+            href={mySchemeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 hover:underline font-semibold px-2 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+            title="Open official scheme on myScheme.gov.in"
+          >
+            <span>myScheme</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
 
         <span className="flex items-center space-x-1 text-blue-600 font-semibold group-hover:translate-x-0.5 transition-transform">
-          <span>View Evidence</span>
+          <span>Details</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </span>
       </div>

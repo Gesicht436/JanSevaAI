@@ -46,6 +46,8 @@ def run_report(args: argparse.Namespace) -> int:
     print("\nTop 5 Eligible Schemes:")
     for s in res.results.eligible[:5]:
         print(f" - [{s.slug}] {s.name} (Verified: {s.verified_ratio:.0%})")
+        print(f"   Official Portal: {s.myscheme_url}")
+        print(f"   Required Docs: {len(s.required_documents)} | Dept Prereqs: {len(s.specialized_criteria)}")
 
     conn.close()
     return 0
