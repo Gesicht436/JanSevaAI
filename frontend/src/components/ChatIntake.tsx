@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Sparkles, MessageSquare, HelpCircle } from 'lucide-react';
+import { ArrowUp, Sparkles, HelpCircle } from 'lucide-react';
 import { CitizenProfile } from '../types';
 import { VoiceRecorder } from './VoiceRecorder';
 
@@ -23,10 +23,10 @@ export const ChatIntake: React.FC<ChatIntakeProps> = ({
   const [inputText, setInputText] = useState('');
 
   const samplePrompts = [
-    'I am a bachelor in IT, 26 years old fellow with some experience in IT sector and wants some loan in Gujarat.',
-    'I am a 38-year-old widow in rural Gujarat managing 2 acres of farmland.',
-    'I am 19, studying B.Sc in Uttar Pradesh from an OBC family, looking for scholarships.',
-    'I am a small artisan in Rajasthan with ₹1.2 Lakh income looking for equipment subsidies.',
+    'I am a bachelor in IT, 26 years old with 3 years experience, seeking a startup loan in Gujarat.',
+    'I am a 38-year-old rural farmer in Uttar Pradesh with 3 acres land looking for crop subsidies.',
+    'I am a 20-year-old female student in Delhi pursuing B.Sc, looking for higher education scholarships.',
+    'I am an artisan in Rajasthan with ₹1.5 Lakh annual family income seeking equipment support.',
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,47 +37,49 @@ export const ChatIntake: React.FC<ChatIntakeProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+    <div className="bg-white rounded-3xl p-6 sm:p-10 border border-zinc-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-8 animate-fadeIn max-w-3xl mx-auto">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-blue-700 text-xs font-bold uppercase tracking-wider mb-2">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Step 1 · Conversational Intake</span>
+      <div className="space-y-3 text-center sm:text-left">
+        <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-zinc-100 rounded-full text-zinc-700 text-xs font-medium border border-zinc-200/60">
+          <Sparkles className="w-3.5 h-3.5 text-zinc-600" />
+          <span>Step 1 · Natural Speech & Text</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Find Government Support Grounded in Verifiable Rules.
+        
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 leading-tight">
+          Find government support grounded in verified statutory rules.
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Describe your background, education, work, and the assistance you need in plain English or Hinglish.
+        
+        <p className="text-sm text-zinc-500 leading-relaxed max-w-2xl font-normal">
+          Describe your background, education, work, and the assistance you need in plain English or Hinglish. We extract your facts without fabricating any criteria.
         </p>
 
-        <div className="flex flex-wrap gap-3 mt-3 text-xs text-slate-600 font-medium">
-          <span className="flex items-center text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-            ✓ Official Source Citations
+        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1 text-xs text-zinc-500 font-normal">
+          <span className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-zinc-50 border border-zinc-200/60 text-zinc-700">
+            <span>✓ Verifiable Citations</span>
           </span>
-          <span className="flex items-center text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-            ✓ Session-Only / No Account
+          <span className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-zinc-50 border border-zinc-200/60 text-zinc-700">
+            <span>✓ Private & Session-Only</span>
           </span>
-          <span className="flex items-center text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
-            ✓ Verifiable Two-Stage Matching
+          <span className="flex items-center space-x-1 px-2.5 py-1 rounded-md bg-zinc-50 border border-zinc-200/60 text-zinc-700">
+            <span>✓ Rule E9 Confirmed</span>
           </span>
         </div>
       </div>
 
       {/* Sparse Clarification Prompt (if triggered) */}
       {clarificationPrompt && (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
+        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-2">
           <div className="flex items-start space-x-3">
-            <HelpCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <HelpCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-bold text-amber-900 uppercase tracking-wider">A Little More Context Needed</p>
-              <p className="text-sm text-amber-800 mt-0.5 leading-relaxed">{clarificationPrompt}</p>
+              <p className="text-xs font-semibold text-amber-900 uppercase tracking-wide">Additional Details Helpful</p>
+              <p className="text-xs sm:text-sm text-amber-800 mt-0.5 leading-relaxed">{clarificationPrompt}</p>
             </div>
           </div>
           {suggestedFields.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pl-8 pt-1">
+            <div className="flex flex-wrap gap-1.5 pl-7 pt-1">
               {suggestedFields.map((f) => (
-                <span key={f} className="text-[11px] font-semibold bg-white text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full">
+                <span key={f} className="text-[11px] font-medium bg-white text-amber-800 border border-amber-300/80 px-2.5 py-0.5 rounded-full">
                   + {f.replaceAll('_', ' ')}
                 </span>
               ))}
@@ -87,21 +89,21 @@ export const ChatIntake: React.FC<ChatIntakeProps> = ({
       )}
 
       {/* Input Box */}
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="relative border-2 border-slate-200 focus-within:border-blue-500 rounded-2xl transition-all shadow-inner bg-slate-50/50">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="relative border border-zinc-200 rounded-2xl transition-all focus-within:border-zinc-800 focus-within:ring-2 focus-within:ring-zinc-800/10 bg-zinc-50/50">
           <textarea
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder={
               currentProfile
                 ? 'Reply with additional details (e.g. "I live in Gujarat and hold a BPL card")…'
-                : 'e.g. I am 26, bachelor in IT, have 2 years of work experience in software, looking for startup loans in Gujarat…'
+                : 'e.g. I am 26, bachelor in IT, with 3 years of work experience, looking for enterprise credit in Gujarat…'
             }
             rows={4}
-            className="w-full bg-transparent p-4 pb-12 text-sm text-slate-800 placeholder-slate-400 focus:outline-none resize-none font-normal"
+            className="w-full bg-transparent p-4 pb-14 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none resize-none font-normal leading-relaxed"
           />
 
-          <div className="absolute bottom-2.5 right-2.5 flex items-center space-x-2">
+          <div className="absolute bottom-3 right-3 flex items-center space-x-2">
             <VoiceRecorder
               onTranscript={(spoken) => setInputText(spoken)}
               onAudioRecorded={onExtractAudio}
@@ -111,28 +113,25 @@ export const ChatIntake: React.FC<ChatIntakeProps> = ({
             <button
               type="submit"
               disabled={isLoading || !inputText.trim()}
-              className="flex items-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="flex items-center space-x-1.5 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl shadow-xs disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>{isLoading ? 'Parsing…' : 'Submit'}</span>
+              <span>{isLoading ? 'Analyzing…' : 'Analyze Facts'}</span>
+              <ArrowUp className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Example Prompt Chips */}
         {!currentProfile && (
-          <div className="pt-2">
-            <p className="text-xs font-semibold text-slate-400 mb-2 flex items-center space-x-1">
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Or try an example citizen query:</span>
-            </p>
+          <div className="space-y-2 pt-1">
+            <p className="text-xs font-medium text-zinc-400">Or click a sample scenario to pre-fill:</p>
             <div className="flex flex-wrap gap-2">
               {samplePrompts.map((prompt, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => setInputText(prompt)}
-                  className="text-left text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200/80 transition-colors"
+                  className="text-left text-xs bg-zinc-100/80 hover:bg-zinc-200/70 text-zinc-700 px-3 py-1.5 rounded-full border border-zinc-200/60 transition-colors"
                 >
                   {prompt}
                 </button>

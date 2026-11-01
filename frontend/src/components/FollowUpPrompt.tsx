@@ -42,7 +42,7 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
   },
   caste_category: {
     label: 'Social Category',
-    question: 'What is your social / caste category for affirmative benefit reservation?',
+    question: 'What is your social / caste category for affirmative benefits?',
     options: [
       { label: 'General', value: 'general' },
       { label: 'OBC', value: 'obc' },
@@ -57,14 +57,14 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
       { label: 'Below 10th', value: 'below_10th' },
       { label: '10th Pass', value: '10th_pass' },
       { label: '12th Pass', value: '12th_pass' },
-      { label: 'Diploma', value: 'diploma' },
+      { label: 'Diploma / ITI', value: 'diploma' },
       { label: 'Graduate', value: 'graduate' },
       { label: 'Postgraduate', value: 'postgraduate' },
     ],
   },
   is_student: {
     label: 'Student Status',
-    question: 'Are you currently enrolled in school, college, or university?',
+    question: 'Are you currently enrolled in school or higher education?',
     options: [
       { label: 'Yes, Enrolled Student', value: true },
       { label: 'No, Not a Student', value: false },
@@ -72,7 +72,7 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
   },
   is_farmer: {
     label: 'Agricultural Background',
-    question: 'Are you engaged in agricultural or farming activities?',
+    question: 'Are you engaged in farming or agricultural cultivation?',
     options: [
       { label: 'Yes, Farmer / Cultivator', value: true },
       { label: 'No', value: false },
@@ -96,7 +96,7 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
   },
   current_sector: {
     label: 'Field of Work / Industry',
-    question: 'Which sector are you working in, or looking to work in?',
+    question: 'Which sector are you working in or seeking to work in?',
     options: [
       { label: 'IT & Technology', value: 'it_tech' },
       { label: 'Agriculture & Farming', value: 'agriculture' },
@@ -114,12 +114,12 @@ const FIELD_CONFIGS: Record<string, FieldConfig> = {
     question: 'What kind of government support are you primarily seeking?',
     options: [
       { label: 'Loan / Business Credit', value: 'credit_loan' },
-      { label: 'Scholarship / Education Support', value: 'scholarship' },
-      { label: 'Pension / Senior Citizen', value: 'pension' },
-      { label: 'Housing Assistance (Pucca Ghar)', value: 'housing' },
+      { label: 'Scholarship / Education Aid', value: 'scholarship' },
+      { label: 'Pension Support', value: 'pension' },
+      { label: 'Housing Assistance', value: 'housing' },
       { label: 'Health Insurance', value: 'health_insurance' },
       { label: 'Skill Training & Certification', value: 'skill_training' },
-      { label: 'Grant / Direct Subsidy', value: 'subsidy_grant' },
+      { label: 'Direct Subsidy / Grant', value: 'subsidy_grant' },
     ],
   },
   annual_family_income_inr: {
@@ -141,7 +141,6 @@ export const FollowUpPrompt: React.FC<FollowUpPromptProps> = ({
   onUpdateField,
   onDismiss,
 }) => {
-  // Find fields that have configs and are still missing/null in the profile
   const missingConfigs = fields
     .filter((f) => {
       const val = (profile as any)[f];
@@ -179,16 +178,16 @@ export const FollowUpPrompt: React.FC<FollowUpPromptProps> = ({
   };
 
   return (
-    <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/70 border border-amber-300 rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all animate-fadeIn">
+    <div className="bg-white border border-zinc-200/90 rounded-3xl p-6 shadow-xs relative overflow-hidden transition-all animate-fadeIn">
       <div className="flex items-start justify-between">
-        <div className="flex items-center space-x-2 text-amber-800 font-bold text-sm">
-          <Sparkles className="w-4 h-4 text-amber-600 animate-pulse" />
-          <span>Unlock More Schemes ({activeIdx + 1} of {missingConfigs.length})</span>
+        <div className="flex items-center space-x-2 text-zinc-800 font-semibold text-xs uppercase tracking-wide">
+          <Sparkles className="w-3.5 h-3.5 text-zinc-600" />
+          <span>High-Leverage Question ({activeIdx + 1} of {missingConfigs.length})</span>
         </div>
         {onDismiss && (
           <button
             onClick={onDismiss}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-white/50 transition-colors"
+            className="text-zinc-400 hover:text-zinc-700 p-1 rounded-full hover:bg-zinc-100 transition-colors"
             title="Dismiss question"
           >
             <X className="w-4 h-4" />
@@ -196,40 +195,40 @@ export const FollowUpPrompt: React.FC<FollowUpPromptProps> = ({
         )}
       </div>
 
-      <div className="mt-2">
-        <h4 className="text-base font-semibold text-slate-800">
+      <div className="mt-2.5">
+        <h4 className="text-base font-semibold text-zinc-900 leading-snug">
           {config.question}
         </h4>
-        <p className="text-xs text-slate-600 mt-0.5">
-          Providing this helps verify your eligibility for several welfare schemes waiting for confirmation.
+        <p className="text-xs text-zinc-500 mt-1">
+          Answering this clarifies pending criteria for schemes in your queue.
         </p>
       </div>
 
       {config.options && config.options.length > 0 ? (
-        <div className="mt-3.5 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {config.options.map((opt, i) => (
             <button
               key={i}
               onClick={() => handleSelect(opt.value)}
-              className="bg-white hover:bg-amber-600 hover:text-white text-slate-700 text-xs font-medium px-3.5 py-2 rounded-xl border border-amber-200 shadow-sm transition-all flex items-center space-x-1.5 active:scale-95"
+              className="bg-zinc-50 hover:bg-zinc-900 hover:text-white text-zinc-800 text-xs font-medium px-4 py-2 rounded-xl border border-zinc-200 transition-all flex items-center space-x-1.5 active:scale-[0.98]"
             >
               <span>{opt.label}</span>
-              <ChevronRight className="w-3.5 h-3.5 opacity-60" />
+              <ChevronRight className="w-3 h-3 opacity-40" />
             </button>
           ))}
         </div>
       ) : (
-        <form onSubmit={handleCustomSubmit} className="mt-3 flex items-center space-x-2 max-w-sm">
+        <form onSubmit={handleCustomSubmit} className="mt-4 flex items-center space-x-2 max-w-sm">
           <input
             type={config.inputType || 'text'}
             value={customInput}
             onChange={(e) => setCustomInput(e.target.value)}
             placeholder={`Enter ${config.label}`}
-            className="flex-1 bg-white border border-amber-300 text-slate-800 text-xs rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400"
+            className="flex-1 bg-zinc-50 border border-zinc-300 text-zinc-900 text-xs rounded-xl px-3.5 py-2 outline-none focus:ring-1 focus:ring-zinc-800"
           />
           <button
             type="submit"
-            className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs px-4 py-2 rounded-xl transition-all shadow-sm"
+            className="bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs px-4 py-2 rounded-xl transition-all shadow-xs"
           >
             Save
           </button>
@@ -237,14 +236,14 @@ export const FollowUpPrompt: React.FC<FollowUpPromptProps> = ({
       )}
 
       {missingConfigs.length > 1 && (
-        <div className="mt-3 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-amber-200/60">
-          <span>{missingConfigs.length - activeIdx - 1} more high-leverage question(s) left</span>
+        <div className="mt-4 flex items-center justify-between text-xs text-zinc-400 pt-3 border-t border-zinc-100">
+          <span>{missingConfigs.length - activeIdx - 1} more follow-up(s) remaining</span>
           {activeIdx + 1 < missingConfigs.length && (
             <button
               onClick={() => setActiveIdx((prev) => prev + 1)}
-              className="text-amber-700 hover:text-amber-900 font-medium underline"
+              className="text-zinc-600 hover:text-zinc-900 font-medium hover:underline"
             >
-              Skip this question
+              Skip
             </button>
           )}
         </div>

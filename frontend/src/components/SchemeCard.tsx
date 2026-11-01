@@ -10,7 +10,8 @@ import {
   ChevronRight, 
   ExternalLink,
   FileText,
-  Building2
+  Building2,
+  Clock
 } from 'lucide-react';
 
 interface SchemeCardProps {
@@ -38,23 +39,31 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({ scheme, onSelect }) => {
   const getVerdictBadge = () => {
     if (scheme.verdict === 'eligible') {
       return (
-        <span className="flex items-center space-x-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-          <CheckCircle className="w-3.5 h-3.5" />
+        <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
           <span>Likely Eligible</span>
         </span>
       );
     }
     if (scheme.verdict === 'needs_more_info') {
       return (
-        <span className="flex items-center space-x-1 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-          <AlertCircle className="w-3.5 h-3.5" />
+        <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full">
+          <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
           <span>Needs More Info</span>
         </span>
       );
     }
+    if (scheme.verdict === 'closed') {
+      return (
+        <span className="inline-flex items-center space-x-1.5 text-xs font-semibold text-zinc-600 bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 rounded-full">
+          <Clock className="w-3.5 h-3.5 text-zinc-500" />
+          <span>Past Deadline</span>
+        </span>
+      );
+    }
     return (
-      <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
-        {scheme.verdict}
+      <span className="inline-flex items-center space-x-1.5 text-xs font-medium text-zinc-600 bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 rounded-full">
+        <span>Ineligible</span>
       </span>
     );
   };
@@ -62,61 +71,61 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({ scheme, onSelect }) => {
   return (
     <div
       onClick={() => onSelect(scheme)}
-      className="bg-white rounded-2xl p-5 border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 relative group"
+      className="bg-white rounded-3xl p-6 border border-zinc-200/80 hover:border-zinc-400/90 shadow-[0_1px_3px_rgba(0,0,0,0.02)] hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 relative group active:scale-[0.99]"
     >
-      <div>
+      <div className="space-y-3">
         {/* Top Badges */}
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             {getVerdictBadge()}
             {scheme.unlocked_in_this_round && (
-              <span className="flex items-center space-x-1 text-xs font-extrabold text-blue-700 bg-blue-100 border border-blue-300 px-2.5 py-1 rounded-full animate-bounce">
-                <Sparkles className="w-3.5 h-3.5 text-blue-600 fill-current" />
-                <span>Unlocked Now!</span>
+              <span className="inline-flex items-center space-x-1 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full animate-bounce">
+                <Sparkles className="w-3 h-3 text-indigo-600" />
+                <span>Unlocked Now</span>
               </span>
             )}
           </div>
 
-          <div className="flex items-center space-x-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+          <div className="flex items-center space-x-1.5 text-[11px] text-zinc-400 font-medium">
+            <span className="uppercase tracking-wider px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600">
               {scheme.level}
             </span>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            <span className="px-2 py-0.5 rounded-md bg-zinc-50 border border-zinc-200/60 text-zinc-600">
               {(scheme.verified_ratio * 100).toFixed(0)}% Verified
             </span>
           </div>
         </div>
 
         {/* Scheme Name */}
-        <h3 className="font-extrabold text-base text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+        <h3 className="font-semibold text-base text-zinc-900 group-hover:text-black transition-colors line-clamp-2 leading-snug">
           {scheme.name}
         </h3>
 
         {/* Ministry */}
-        <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-1">
+        <p className="text-xs text-zinc-500 line-clamp-1 font-normal">
           {scheme.ministry_or_department || 'Government of India'}
         </p>
 
-        {/* Scheme Description / Benefit Snippet */}
-        <p className="text-xs text-slate-600 mt-3 line-clamp-3 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+        {/* Benefit Callout Box */}
+        <div className="bg-zinc-50 border border-zinc-100 rounded-2xl p-3.5 text-xs text-zinc-700 leading-relaxed line-clamp-3">
           {scheme.description || scheme.benefit_snippet || 'Provides financial assistance, subsidies, or institutional support to eligible beneficiaries.'}
-        </p>
+        </div>
 
         {/* Requirement Indicators (Docs count & Specialized Dept checks) */}
-        <div className="flex flex-wrap items-center gap-2 mt-3">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {scheme.required_documents && scheme.required_documents.length > 0 && (
             <span
-              className="flex items-center space-x-1 text-[11px] font-semibold text-slate-700 bg-slate-100/90 px-2 py-0.5 rounded-md"
+              className="inline-flex items-center space-x-1 text-[11px] font-medium text-zinc-600 bg-zinc-100/80 px-2.5 py-0.5 rounded-md"
               title={`${scheme.required_documents.length} official documents required`}
             >
-              <FileText className="w-3 h-3 text-slate-500" />
+              <FileText className="w-3 h-3 text-zinc-500" />
               <span>{scheme.required_documents.length} Docs Required</span>
             </span>
           )}
 
           {scheme.specialized_criteria && scheme.specialized_criteria.length > 0 && (
             <span
-              className="flex items-center space-x-1 text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md"
+              className="inline-flex items-center space-x-1 text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-md"
               title={`${scheme.specialized_criteria.length} specialized criteria require department self-verification`}
             >
               <Building2 className="w-3 h-3 text-amber-600" />
@@ -127,20 +136,20 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({ scheme, onSelect }) => {
       </div>
 
       {/* Card Footer Actions */}
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+      <div className="flex items-center justify-between pt-3 border-t border-zinc-100 text-xs">
         <div className="flex items-center space-x-2">
           <button
             type="button"
             onClick={handleAudioToggle}
-            className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border transition-colors ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border transition-all ${
               isPlaying
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'text-slate-600 hover:text-slate-900 bg-slate-50 border-slate-200'
+                ? 'bg-zinc-900 text-white border-zinc-900 shadow-xs'
+                : 'text-zinc-600 hover:text-zinc-900 bg-zinc-50 hover:bg-zinc-100 border-zinc-200/80'
             }`}
             title="Listen to explanation"
           >
-            {isPlaying ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-blue-600" />}
-            <span>{isPlaying ? 'Stop' : 'Listen'}</span>
+            {isPlaying ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+            <span className="font-medium">{isPlaying ? 'Stop' : 'Listen'}</span>
           </button>
 
           <a
@@ -148,15 +157,15 @@ export const SchemeCard: React.FC<SchemeCardProps> = ({ scheme, onSelect }) => {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800 hover:underline font-semibold px-2 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
+            className="flex items-center space-x-1 text-xs text-zinc-600 hover:text-zinc-900 font-medium px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 transition-colors"
             title="Open official scheme on myScheme.gov.in"
           >
             <span>myScheme</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3 h-3 text-zinc-400" />
           </a>
         </div>
 
-        <span className="flex items-center space-x-1 text-blue-600 font-semibold group-hover:translate-x-0.5 transition-transform">
+        <span className="flex items-center space-x-1 text-zinc-900 font-semibold text-xs group-hover:translate-x-0.5 transition-transform">
           <span>Details</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </span>
