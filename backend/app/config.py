@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     ADMIN_TOKEN: str = ""
-    DATABASE_PATH: str = "Datasets/schemes.db"
+    DATABASE_PATH: str = "backend/Datasets/schemes.db"
 
     # LLM Providers Configuration
     LLM_PROVIDER: str = "gemini"  # "gemini" or "openrouter"
@@ -55,19 +55,16 @@ class Settings(BaseSettings):
             return path
         candidates = [
             Path(__file__).resolve().parent.parent / "Datasets" / "schemes.db",
-            Path(__file__).resolve().parent.parent.parent / "Datasets" / "schemes.db",
+            PROJECT_ROOT / "backend" / "Datasets" / "schemes.db",
+            Path.cwd() / "backend" / "Datasets" / "schemes.db",
+            Path("/var/task/backend/Datasets/schemes.db"),
             PROJECT_ROOT / path,
             Path.cwd() / path,
-            Path.cwd() / "Datasets" / "schemes.db",
-            Path.cwd() / "backend" / "Datasets" / "schemes.db",
-            Path("/var/task/Datasets/schemes.db"),
-            Path("/var/task/backend/Datasets/schemes.db"),
         ]
         for candidate in candidates:
             if candidate.is_file():
                 return candidate.resolve()
-        # Fallback to local workspace relative
-        return (PROJECT_ROOT / path).resolve()
+        raise FileNotFoundError(f"Canonical database not found. Checked: {[str(c) for c in candidates]}")
 
     @property
     def cors_origin_list(self) -> list[str]:

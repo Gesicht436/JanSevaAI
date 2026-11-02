@@ -15,7 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import health, catalog, schemes, profile, match, explain, tts, admin
+from .api import health, catalog, schemes, profile, match, explain, tts
 from .config import settings
 from .errors import AppError, app_error_handler, validation_error_handler
 
@@ -30,12 +30,12 @@ def create_app() -> FastAPI:
         version="1.0.0"
     )
 
-    # CORS Middleware - permit local dev and any Vercel/cloud deployment domain
+    # CORS Middleware - configured origins from settings
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origin_list,
         allow_credentials=False,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -69,11 +69,15 @@ def create_app() -> FastAPI:
         (match.router, "match"),
         (explain.router, "explain"),
         (tts.router, "tts"),
-        (admin.router, "admin"),
     ]
     for r, tag in api_routers:
         app.include_router(r, prefix="/api", tags=[tag])
         app.include_router(r, tags=[tag])
+
+    # Explicit 404 for unknown /api/... endpoints
+    @app.api_route("/api/{unknown_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
+    async def api_404_handler(unknown_path: str):
+        return JSONResponse(status_code=404, content={"detail": f"API endpoint '/api/{unknown_path}' not found."})
 
     # Mount built SPA frontend if present
     dist_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
@@ -84,12 +88,14 @@ def create_app() -> FastAPI:
 
         @app.get("/{full_path:path}")
         async def serve_spa_frontend(full_path: str):
-            if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json"):
+            if full_path.startswith("api/"):
+                return JSONResponse(status_code=404, content={"detail": f"API endpoint '/{full_path}' not found."})
+            if full_path in ("docs", "redoc", "openapi.json"):
                 return None
             index_path = dist_dir / "index.html"
             if index_path.exists():
                 return FileResponse(str(index_path))
-            return JSONResponse({"message": "Frontend distribution file not found."})
+            return JSONResponse(status_code=404, content={"message": "Frontend distribution file not found."})
     else:
         @app.get("/")
         def api_root():

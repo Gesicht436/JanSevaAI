@@ -2,9 +2,10 @@
 Matching Response Models
 """
 
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 from .profile import CitizenProfile
+from .documents import RequiredDocumentItem
 
 
 class CriterionResult(BaseModel):
@@ -16,6 +17,7 @@ class CriterionResult(BaseModel):
     quote: str
     quote_verified: bool
     source_line: int
+    source_section: Optional[str] = "eligibility"
     note: Optional[str] = None
     is_specialized: bool = False
 
@@ -32,13 +34,14 @@ class SchemeVerdictResult(BaseModel):
     benefit_snippet: str
     description: Optional[str] = None
     myscheme_url: str = ""
-    required_documents: List[str] = Field(default_factory=list)
+    required_documents: List[Union[RequiredDocumentItem, str]] = Field(default_factory=list)
     specialized_criteria: List[str] = Field(default_factory=list)
     verified_ratio: float
     contextual_match_reason: Optional[str] = None
     missing_fields: List[str]
     criteria_results: List[CriterionResult]
     unlocked_in_this_round: bool = False
+    requires_manual_review: bool = False
 
 
 class MatchCounts(BaseModel):

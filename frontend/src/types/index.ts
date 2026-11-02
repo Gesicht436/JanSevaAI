@@ -26,6 +26,26 @@ export type BenefitIntent =
   | 'subsidy_grant'
   | 'general';
 
+export type DocumentType =
+  | 'aadhaar'
+  | 'ration_card'
+  | 'income_certificate'
+  | 'caste_certificate'
+  | 'domicile_certificate'
+  | 'bank_passbook'
+  | 'birth_certificate'
+  | 'disability_certificate'
+  | 'land_records'
+  | 'school_or_college_id'
+  | 'marksheet'
+  | 'passport_photo';
+
+export interface RequiredDocumentItem {
+  type: DocumentType | null;
+  text: string;
+  source_line?: number;
+}
+
 export interface CitizenProfile {
   name?: string | null;
   age?: number | null;
@@ -73,6 +93,7 @@ export interface CriterionResult {
   quote: string;
   quote_verified: boolean;
   source_line: number;
+  source_section?: string | null;
   note?: string | null;
   is_specialized?: boolean;
 }
@@ -89,13 +110,14 @@ export interface SchemeVerdictResult {
   benefit_snippet: string;
   description?: string | null;
   myscheme_url?: string;
-  required_documents?: string[];
+  required_documents?: (RequiredDocumentItem | string)[];
   specialized_criteria?: string[];
   verified_ratio: number;
   contextual_match_reason?: string | null;
   missing_fields: string[];
   criteria_results: CriterionResult[];
   unlocked_in_this_round?: boolean;
+  requires_manual_review?: boolean;
 }
 
 export interface MatchCounts {

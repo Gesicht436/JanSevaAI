@@ -38,7 +38,7 @@ def synthesize_speech_google(text: str) -> Optional[bytes]:
     }
     try:
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=6.0) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             import base64
             return base64.b64decode(data["audioContent"])
@@ -51,7 +51,7 @@ async def synthesize_speech(text: str) -> bytes:
     """Unified speech synthesis entry point."""
     cleaned = text[:400]
     if settings.TTS_PROVIDER == "google-cloud" and settings.GOOGLE_TTS_API_KEY:
-        audio = synthesize_speech_google(cleaned)
+        audio = await asyncio.to_thread(synthesize_speech_google, cleaned)
         if audio:
             return audio
     # Default to edge-tts

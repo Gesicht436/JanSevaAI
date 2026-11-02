@@ -33,20 +33,25 @@ def call_llm(
     temperature: float = 0.0,
     inline_audio: Optional[Dict[str, str]] = None
 ) -> Optional[str]:
-    """Routes LLM request to Google Gemini (if configured) or OpenRouter."""
-    # 1. Try Gemini
-    if settings.GEMINI_API_KEY and not "your_" in settings.GEMINI_API_KEY.lower():
-        try:
-            return _call_gemini(system_prompt, user_prompt, response_schema, temperature, inline_audio)
-        except Exception as e:
-            logger.warning(f"Gemini call failed: {e}. Trying OpenRouter fallback.")
+    """Routes LLM request based on LLM_PROVIDER setting with automatic failover."""
+    preferred_provider = (getattr(settings, "LLM_PROVIDER", None) or "openrouter").lower()
+    providers = ["openrouter", "gemini"] if preferred_provider == "openrouter" else ["gemini", "openrouter"]
 
-    # 2. Try OpenRouter
-    if settings.OPENROUTER_API_KEY and not "your_" in settings.OPENROUTER_API_KEY.lower():
-        try:
-            return _call_openrouter(system_prompt, user_prompt, temperature)
-        except Exception as e:
-            logger.warning(f"OpenRouter call failed: {e}.")
+    for provider in providers:
+        if provider == "gemini" and settings.GEMINI_API_KEY and not "your_" in settings.GEMINI_API_KEY.lower():
+            try:
+                res = _call_gemini(system_prompt, user_prompt, response_schema, temperature, inline_audio)
+                if res:
+                    return res
+            except Exception as e:
+                logger.warning(f"Gemini call failed: {e}. Trying OpenRouter fallback.")
+        elif provider == "openrouter" and settings.OPENROUTER_API_KEY and not "your_" in settings.OPENROUTER_API_KEY.lower():
+            try:
+                res = _call_openrouter(system_prompt, user_prompt, temperature)
+                if res:
+                    return res
+            except Exception as e:
+                logger.warning(f"OpenRouter call failed: {e}.")
 
     return None
 
@@ -75,8 +80,8 @@ def _call_gemini(
     }).encode("utf-8")
 
     req = urllib.request.Request(endpoint, data=body, headers={"Content-Type": "application/json"}, method="POST")
-    # Cap timeout at 8s to stay well below Vercel's 10s serverless ceiling
-    with urllib.request.urlopen(req, timeout=8) as resp:
+    # Cap timeout at 3.5s to prevent request stalls
+    with urllib.request.urlopen(req, timeout=3.5) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         return data["candidates"][0]["content"]["parts"][0]["text"]
 
@@ -89,32 +94,45 @@ def _call_openrouter(system: str, user: str, temp: float = 0.0) -> Optional[str]
         "HTTP-Referer": "https://github.com/JanSevaAI",
         "X-Title": "JanSeva AI"
     }
-    models = list(dict.fromkeys([
-        settings.OPENROUTER_MODEL,
+    # Fast free models with edge-level fallback (capped at 3 models per OpenRouter API constraints)
+    fallback_models = [
+        settings.OPENROUTER_MODEL or "openrouter/free",
         "nvidia/nemotron-3.5-lightning:free",
-        "google/gemma-4-31b-it:free"
-    ]))
+        "liquid/lfm-2.5-2.6b:free"
+    ]
+    models = list(dict.fromkeys(fallback_models))[:3]
+    primary_model = models[0]
 
-    for model in models:
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user}
-            ],
-            "temperature": temp
-        }
-        try:
-            req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    content = data["choices"][0]["message"]["content"]
-                    if content:
-                        return content
-        except Exception as e:
-            logger.warning(f"OpenRouter model {model} failed: {e}")
-            continue
+    payload = {
+        "model": primary_model,
+        "models": models,
+        "provider": {
+            "sort": "throughput",
+            "allow_fallbacks": True
+        },
+        "reasoning": {
+            "effort": "none"
+        },
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user}
+        ],
+        "response_format": {"type": "json_object"},
+        "max_tokens": 400,
+        "temperature": temp
+    }
+    try:
+        req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=12.0) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                choices = data.get("choices")
+                if choices and len(choices) > 0:
+                    return choices[0].get("message", {}).get("content")
+    except urllib.error.HTTPError as e:
+        logger.warning(f"OpenRouter HTTP Error {e.code}: {e.read().decode('utf-8', errors='ignore')}")
+    except Exception as e:
+        logger.warning(f"OpenRouter request failed: {e}")
     return None
 
 
@@ -137,28 +155,40 @@ def merge_profiles(existing: Optional[CitizenProfile], new_facts: CitizenProfile
 
 
 def check_information_sufficiency(profile: CitizenProfile) -> Tuple[bool, Optional[str], List[str]]:
-    """Evaluates if citizen provided enough anchor details to generate meaningful matches."""
+    """Evaluates if citizen provided enough anchor details to generate meaningful matches.
+    Requires at least 2 anchors AND at least one primary demographic/intent anchor (state, age, income, or intent).
+    """
     known_anchors = [f for f in ANCHOR_FIELDS if getattr(profile, f, None) is not None]
+    has_demographic_anchor = (
+        profile.state_ut is not None or
+        profile.age is not None or
+        profile.annual_family_income_inr is not None or
+        profile.benefit_intent is not None
+    )
 
-    if len(known_anchors) >= 2:
+    if len(known_anchors) >= 2 and has_demographic_anchor:
         return False, None, []
 
     suggested = [
-        f for f in ["state_ut", "age", "gender", "qualification", "annual_family_income_inr", "current_sector"]
+        f for f in ["state_ut", "age", "gender", "qualification", "annual_family_income_inr", "current_sector", "benefit_intent"]
         if getattr(profile, f, None) is None
     ]
 
-    if len(known_anchors) == 1:
-        f = known_anchors[0]
-        val = getattr(profile, f)
-        if f == "state_ut":
-            prompt = f"Great, I see you are based in {val}! To find the exact welfare and subsidy schemes you qualify for, could you also share your age, education, or occupation?"
-        elif f == "age":
-            prompt = f"Thanks for sharing your age ({val})! Which State or Union Territory do you live in, and what is your education qualification or work background?"
-        else:
-            prompt = "Thank you for sharing your details. To match you with specific welfare programs, could you also share your State, age, and occupation or education?"
+    missing_basics = []
+    if profile.state_ut is None:
+        missing_basics.append("State or Union Territory")
+    if profile.age is None:
+        missing_basics.append("age")
+    if profile.qualification is None and profile.current_sector is None:
+        missing_basics.append("education or occupation")
+    if profile.benefit_intent is None:
+        missing_basics.append("what kind of support (loans, subsidies, scholarships) you are seeking")
+
+    if missing_basics:
+        needed_str = " and ".join(missing_basics[:2]) if len(missing_basics) <= 2 else f"{missing_basics[0]}, {missing_basics[1]}, and {missing_basics[2]}"
+        prompt = f"Great! To match you with specific welfare schemes and grants, could you also share your {needed_str}?"
     else:
-        prompt = "Welcome to JanSeva AI! To discover government schemes you qualify for, tell us a bit about yourself—like your State, age, education, and what kind of support (loans, scholarships, pensions) you are seeking."
+        prompt = "Welcome to JanSeva AI! To discover government schemes you qualify for, tell us a bit about yourself—like your State, age, education, and what kind of support you are seeking."
 
     return True, prompt, suggested
 
@@ -230,7 +260,7 @@ def extract_profile_deterministic(text: str) -> Tuple[CitizenProfile, Dict[str, 
         profile.qualification = "postgraduate"
         conf["qualification"] = 0.95
         phrases["qualification"] = "postgraduate"
-    elif re.search(r'\b(bachelor|graduate|college degree|b\.?tech|b\.?sc|b\.?com|b\.?a|bca)\b', lower):
+    elif re.search(r'\b(bs|bachelor|graduate|college degree|b\.?tech|b\.?sc|b\.?com|b\.?a|bca)\b', lower):
         profile.qualification = "graduate"
         conf["qualification"] = 0.98
         phrases["qualification"] = "graduate"
@@ -248,7 +278,7 @@ def extract_profile_deterministic(text: str) -> Tuple[CitizenProfile, Dict[str, 
         phrases["qualification"] = "10th_pass"
 
     # 6. Sector & Career Experience
-    if re.search(r'\b(it sector|software|developer|programmer|computer|tech|coding)\b', lower):
+    if re.search(r'\b(it sector|software|developer|programmer|computer|tech|coding|iit|nit|engineer|engineering)\b', lower):
         profile.current_sector = "it_tech"
         conf["current_sector"] = 0.95
         phrases["current_sector"] = "it_tech"
@@ -305,102 +335,116 @@ def extract_profile_deterministic(text: str) -> Tuple[CitizenProfile, Dict[str, 
 
 
 def extract_profile_with_llm(text: str, existing_profile: Optional[CitizenProfile] = None) -> ProfileExtractResponse:
-    """Primary extraction via LLM with automatic fallback to deterministic parser."""
-    system_prompt = (
-        "You are an expert civic intake parser. Extract citizen attributes from English text into strict JSON.\n"
-        "Return a JSON object conforming strictly to this format:\n"
-        "{\n"
-        '  "profile": {\n'
-        '    "name": "Citizen name or null",\n'
-        '    "age": 26,\n'
-        '    "gender": "female" | "male" | "transgender" | null,\n'
-        '    "marital_status": "never_married" | "married" | "widowed" | "divorced" | null,\n'
-        '    "state_ut": "Official State name e.g. Gujarat or null",\n'
-        '    "residence": "rural" | "urban" | null,\n'
-        '    "qualification": "below_10th" | "10th_pass" | "12th_pass" | "diploma" | "graduate" | "postgraduate" | null,\n'
-        '    "employment_status": "employed" | "self_employed" | "unemployed" | null,\n'
-        '    "has_work_experience": true | false | null,\n'
-        '    "years_of_experience": integer or null,\n'
-        '    "current_sector": "it_tech" | "agriculture" | "artisan_craft" | "construction" | "manufacturing" | "services_retail" | "healthcare" | "education" | "unorganized" | "other" | null,\n'
-        '    "aspiring_sector": same as above or null,\n'
-        '    "benefit_intent": "credit_loan" | "scholarship" | "pension" | "housing" | "health_insurance" | "skill_training" | "subsidy_grant" | "general" | null,\n'
-        '    "is_farmer": true | false | null,\n'
-        '    "land_holding_acres": number or null,\n'
-        '    "caste_category": "general" | "obc" | "sc" | "st" | "pvtg" | "dnt" | null,\n'
-        '    "is_bpl": true | false | null,\n'
-        '    "is_minority": true | false | null,\n'
-        '    "annual_family_income_inr": integer (e.g. 1.5 lakh -> 150000) or null\n'
-        '  },\n'
-        '  "confidence_by_field": {"field": 0.95},\n'
-        '  "raw_phrases_by_field": {"field": "verbatim words"}\n'
-        "}\n"
-        "Note: 'bachelor in IT' means qualification='graduate', current_sector='it_tech'.\n"
-        "Do not invent facts not explicitly stated or implied."
+    """Primary extraction via LLM with structured output; falls back to deterministic regex
+    if LLM call fails, times out, or when no LLM API key is configured.
+    """
+    has_llm_keys = bool(
+        (settings.OPENROUTER_API_KEY and "your_" not in settings.OPENROUTER_API_KEY.lower()) or
+        (settings.GEMINI_API_KEY and "your_" not in settings.GEMINI_API_KEY.lower())
     )
 
-    llm_output = call_llm(system_prompt, text, temperature=0.0)
-    if llm_output:
-        try:
-            cleaned = re.sub(r"^```(?:json)?", "", llm_output.strip(), flags=re.MULTILINE)
-            cleaned = re.sub(r"```$", "", cleaned.strip(), flags=re.MULTILINE).strip()
-            data = json.loads(cleaned)
-            profile_data = data.get("profile", {})
-            profile_obj = CitizenProfile(**profile_data)
+    det_profile, det_conf, det_phrases = extract_profile_deterministic(text)
+    merged_det = merge_profiles(existing_profile, det_profile)
+    is_insufficient_det, prompt_det, suggested_det = check_information_sufficiency(merged_det)
 
-            # Augment any fields left None by the LLM using deterministic fallback
-            det_profile, det_conf, det_phrases = extract_profile_deterministic(text)
-            for f in CitizenProfile.model_fields.keys():
-                if getattr(profile_obj, f) is None and getattr(det_profile, f) is not None:
-                    setattr(profile_obj, f, getattr(det_profile, f))
+    if has_llm_keys:
+        system_prompt = (
+            "You are an expert citizen profile extractor for government welfare schemes in India.\n"
+            "Extract citizen attributes from conversational English text into strict JSON.\n"
+            "Only extract facts explicitly mentioned or directly implied. Set all unmentioned fields to null.\n\n"
+            "JSON Schema:\n"
+            "{\n"
+            '  "profile": {\n'
+            '    "name": null,\n'
+            '    "age": integer or null,\n'
+            '    "gender": "female" | "male" | "transgender" | null,\n'
+            '    "marital_status": "never_married" | "married" | "widowed" | "divorced" | null,\n'
+            '    "state_ut": "Canonical Indian State name e.g. Gujarat, Maharashtra" | null,\n'
+            '    "residence": "rural" | "urban" | null,\n'
+            '    "qualification": "below_10th" | "10th_pass" | "12th_pass" | "diploma" | "graduate" | "postgraduate" | null,\n'
+            '    "employment_status": "employed" | "self_employed" | "unemployed" | null,\n'
+            '    "has_work_experience": true | false | null,\n'
+            '    "years_of_experience": integer or null,\n'
+            '    "current_sector": "it_tech" | "agriculture" | "artisan_craft" | "construction" | "manufacturing" | "services_retail" | "healthcare" | "education" | "unorganized" | "other" | null,\n'
+            '    "aspiring_sector": same as current_sector or null,\n'
+            '    "benefit_intent": "credit_loan" | "scholarship" | "pension" | "housing" | "health_insurance" | "skill_training" | "subsidy_grant" | "general" | null,\n'
+            '    "is_farmer": true | false | null,\n'
+            '    "land_holding_acres": number or null,\n'
+            '    "caste_category": "general" | "obc" | "sc" | "st" | "pvtg" | "dnt" | null,\n'
+            '    "is_bpl": true | false | null,\n'
+            '    "is_minority": true | false | null,\n'
+            '    "annual_family_income_inr": integer or null\n'
+            '  },\n'
+            '  "confidence_by_field": {"field": 0.95},\n'
+            '  "raw_phrases_by_field": {"field": "verbatim text"}\n'
+            "}\n\n"
+            "Critical Domain Mappings & Anti-Hallucination Rules:\n"
+            "- BS / B.Sc / B.Tech / BE / Bachelor / College Degree -> qualification: 'graduate'\n"
+            "- IIT / NIT / tech / software / computer / engineering -> current_sector: 'it_tech' (unless specified otherwise)\n"
+            "- NEVER set is_farmer: true or current_sector: 'agriculture' unless farming, cultivator, crop, or agriculture is explicitly stated. Do NOT default unmentioned fields to agriculture or farmer.\n"
+            "- Set any unmentioned attribute strictly to null.\n"
+            "- Return ONLY valid JSON. No conversational preamble or markdown."
+        )
 
-            merged = merge_profiles(existing_profile, profile_obj)
-            is_insufficient, prompt, suggested = check_information_sufficiency(merged)
+        llm_output = call_llm(system_prompt, text, temperature=0.0)
+        if llm_output:
+            try:
+                cleaned = re.sub(r"^```(?:json)?", "", llm_output.strip(), flags=re.MULTILINE)
+                cleaned = re.sub(r"```$", "", cleaned.strip(), flags=re.MULTILINE).strip()
+                data = json.loads(cleaned)
+                profile_data = data.get("profile", {})
+                profile_obj = CitizenProfile(**profile_data)
 
-            # Sanitize confidence & phrases so None or invalid types never trigger validation errors
-            raw_conf = data.get("confidence_by_field") or {}
-            clean_conf = {
-                str(k): float(v)
-                for k, v in raw_conf.items()
-                if v is not None and isinstance(v, (int, float))
-            }
-            for k, v in det_conf.items():
-                if k not in clean_conf:
-                    clean_conf[k] = v
+                # Augment any fields left None by the LLM using deterministic fallback
+                for f in CitizenProfile.model_fields.keys():
+                    if getattr(profile_obj, f) is None and getattr(det_profile, f) is not None:
+                        setattr(profile_obj, f, getattr(det_profile, f))
 
-            raw_phrases = data.get("raw_phrases_by_field") or {}
-            clean_phrases = {
-                str(k): str(v)
-                for k, v in raw_phrases.items()
-                if v is not None and str(v).strip() != ""
-            }
-            for k, v in det_phrases.items():
-                if k not in clean_phrases:
-                    clean_phrases[k] = v
+                merged = merge_profiles(existing_profile, profile_obj)
+                is_insufficient, prompt, suggested = check_information_sufficiency(merged)
 
-            return ProfileExtractResponse(
-                profile=merged,
-                confidence_by_field=clean_conf,
-                raw_phrases_by_field=clean_phrases,
-                transcript=text,
-                is_insufficient=is_insufficient,
-                clarification_prompt=prompt,
-                suggested_fields=suggested
-            )
-        except Exception as e:
-            logger.warning(f"Error parsing LLM response: {e}. Falling back to deterministic.")
+                # Sanitize confidence & phrases so None or invalid types never trigger validation errors
+                raw_conf = data.get("confidence_by_field") or {}
+                clean_conf = {
+                    str(k): float(v)
+                    for k, v in raw_conf.items()
+                    if v is not None and isinstance(v, (int, float))
+                }
+                for k, v in det_conf.items():
+                    if k not in clean_conf:
+                        clean_conf[k] = v
 
-    # Deterministic fallback
-    profile_obj, conf, phrases = extract_profile_deterministic(text)
-    merged = merge_profiles(existing_profile, profile_obj)
-    is_insufficient, prompt, suggested = check_information_sufficiency(merged)
+                raw_phrases = data.get("raw_phrases_by_field") or {}
+                clean_phrases = {
+                    str(k): str(v)
+                    for k, v in raw_phrases.items()
+                    if v is not None and str(v).strip() != ""
+                }
+                for k, v in det_phrases.items():
+                    if k not in clean_phrases:
+                        clean_phrases[k] = v
+
+                return ProfileExtractResponse(
+                    profile=merged,
+                    confidence_by_field=clean_conf,
+                    raw_phrases_by_field=clean_phrases,
+                    transcript=text,
+                    is_insufficient=is_insufficient,
+                    clarification_prompt=prompt,
+                    suggested_fields=suggested
+                )
+            except Exception as e:
+                logger.warning(f"Error parsing LLM response: {e}. Falling back to deterministic.")
+
+    # Fallback to deterministic extraction
     return ProfileExtractResponse(
-        profile=merged,
-        confidence_by_field=conf,
-        raw_phrases_by_field=phrases,
+        profile=merged_det,
+        confidence_by_field=det_conf,
+        raw_phrases_by_field=det_phrases,
         transcript=text,
-        is_insufficient=is_insufficient,
-        clarification_prompt=prompt,
-        suggested_fields=suggested
+        is_insufficient=is_insufficient_det,
+        clarification_prompt=prompt_det,
+        suggested_fields=suggested_det
     )
 
 
@@ -445,10 +489,10 @@ def generate_grounded_explanation(
     benefit_snippet: str,
     contextual_reason: Optional[str] = None
 ) -> str:
-    """Generates a verifiable explanation citing only verbatim passed/failed clauses."""
-    passed = [c["quote"] for c in criteria_results if c.get("result") == "pass"]
-    failed = [c["quote"] for c in criteria_results if c.get("result") == "fail"]
-    unknown = [c["quote"] for c in criteria_results if c.get("result") == "unknown"]
+    """Generates a verifiable explanation citing only verified verbatim clauses."""
+    passed = [c["quote"] for c in criteria_results if c.get("result") == "pass" and c.get("quote_verified") and c.get("quote")]
+    failed = [c["quote"] for c in criteria_results if c.get("result") == "fail" and c.get("quote_verified") and c.get("quote")]
+    unknown = [c["quote"] for c in criteria_results if c.get("result") == "unknown" and c.get("quote_verified") and c.get("quote")]
 
     if verdict == "eligible":
         citation = f"\"{passed[0]}\"" if passed else "all mandatory guidelines"

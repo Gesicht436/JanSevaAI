@@ -37,8 +37,15 @@ export const SchemeDetailModal: React.FC<SchemeDetailModalProps> = ({ scheme, pr
     let active = true;
     setIsLoading(true);
 
-    const profileToUse = profile ? { ...profile, confirmed: true } : ({ confirmed: true } as any);
-    explainScheme(scheme.slug, profileToUse)
+    if (!profile || !profile.confirmed) {
+      setIsLoading(false);
+      setExplanation(
+        `Profile confirmation is required to view official grounded eligibility explanations. Under this scheme: ${scheme.description || scheme.benefit_snippet}`
+      );
+      return;
+    }
+
+    explainScheme(scheme.slug, profile)
       .then((res) => {
         if (active) {
           setExplanation(res.explanation);
@@ -90,6 +97,12 @@ export const SchemeDetailModal: React.FC<SchemeDetailModalProps> = ({ scheme, pr
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 <span>{(scheme.verified_ratio * 100).toFixed(0)}% Verifiable</span>
               </span>
+              {scheme.requires_manual_review && (
+                <span className="text-[11px] font-semibold bg-amber-50 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200 flex items-center space-x-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Department Review Required</span>
+                </span>
+              )}
               <a
                 href={mySchemeUrl}
                 target="_blank"
@@ -184,15 +197,53 @@ export const SchemeDetailModal: React.FC<SchemeDetailModalProps> = ({ scheme, pr
 
             {scheme.required_documents && scheme.required_documents.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {scheme.required_documents.map((doc, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start space-x-2.5 p-3 bg-zinc-50 hover:bg-zinc-100/70 rounded-xl border border-zinc-200/80 text-xs text-zinc-800 transition-colors"
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                    <span className="leading-snug font-medium">{doc}</span>
-                  </div>
-                ))}
+                {scheme.required_documents.map((docItem, idx) => {
+                  const doc = typeof docItem === 'string' ? { type: null, text: docItem } : docItem;
+                  const docType = doc.type ?? null;
+                  const isHeld = docType ? (profile?.documents_held || []).includes(docType) : false;
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex flex-col p-3 rounded-xl border text-xs transition-colors space-y-1.5 ${
+                        isHeld
+                          ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950'
+                          : docType
+                          ? 'bg-amber-50/40 border-amber-200 text-amber-950'
+                          : 'bg-zinc-50 border-zinc-200/90 text-zinc-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start space-x-2">
+                          {isHeld ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                          ) : docType ? (
+                            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <HelpCircle className="w-4 h-4 text-zinc-500 flex-shrink-0 mt-0.5" />
+                          )}
+                          <span className="leading-snug font-medium">{doc.text}</span>
+                        </div>
+                        <span
+                          className={`text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded shrink-0 ${
+                            isHeld
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : docType
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-zinc-200/70 text-zinc-600'
+                          }`}
+                        >
+                          {isHeld ? 'Have' : docType ? 'Needs Confirmation' : 'Unclassified'}
+                        </span>
+                      </div>
+                      {!docType && (
+                        <p className="text-[10px] text-zinc-500 italic pl-6">
+                          Specific document format evaluated by nodal department at application.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="p-3 bg-zinc-50 rounded-xl border border-dashed border-zinc-200 text-xs text-zinc-400 italic">

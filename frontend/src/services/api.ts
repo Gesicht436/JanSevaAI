@@ -49,7 +49,7 @@ async function parseJsonResponse<T>(res: Response, fallbackError: string): Promi
 }
 
 export async function getCatalogStatus(): Promise<CatalogStatus> {
-  const res = await fetchWithTimeout(`${API_BASE}/catalog/status`, {}, 8000);
+  const res = await fetchWithTimeout(`${API_BASE}/catalog/status`, {}, 10000);
   return parseJsonResponse<CatalogStatus>(res, 'Failed to fetch catalog status');
 }
 
@@ -67,7 +67,7 @@ export async function extractProfile(
         existing_profile: existingProfile || null,
       }),
     },
-    10000
+    20000
   );
   return parseJsonResponse<ProfileExtractResponse>(res, 'Failed to extract profile');
 }
@@ -88,7 +88,7 @@ export async function extractProfileAudio(
       method: 'POST',
       body: formData,
     },
-    12000
+    25000
   );
   return parseJsonResponse<ProfileExtractResponse>(res, 'Failed to transcribe audio');
 }
@@ -109,7 +109,7 @@ export async function matchSchemes(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     },
-    12000
+    15000
   );
   return parseJsonResponse<MatchResponse>(res, 'Failed to match schemes');
 }
@@ -122,7 +122,7 @@ export async function explainScheme(slug: string, profile: CitizenProfile) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, profile }),
     },
-    10000
+    15000
   );
   return parseJsonResponse<any>(res, 'Failed to generate explanation');
 }
@@ -135,8 +135,7 @@ export async function fetchSpeechAudio(text: string): Promise<Blob> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     },
-    8000
+    12000
   );
-  if (!res.ok) throw new Error('Audio synthesis failed');
   return res.blob();
 }

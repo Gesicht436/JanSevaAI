@@ -115,8 +115,8 @@ class CitizenProfile(BaseModel):
 
 
 class ProfileExtractRequest(BaseModel):
-    text: Optional[str] = None
-    transcript: Optional[str] = None
+    text: Optional[str] = Field(None, max_length=5000, description="Citizen intake conversational text")
+    transcript: Optional[str] = Field(None, max_length=5000, description="Speech transcript")
     existing_profile: Optional[CitizenProfile] = None
 
 

@@ -253,6 +253,6 @@ class RuleCompiler:
             "source_section": section_name,
             "source_line": line_idx,
             "source_quote": quote,
-            "quote_verified": True,
+            "quote_verified": False,
             "note": note
         }

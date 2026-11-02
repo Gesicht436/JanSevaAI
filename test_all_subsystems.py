@@ -144,14 +144,18 @@ def run_tests():
         age=26,
         gender="male",
         marital_status="never_married",
-        state_ut="Maharashtra",
+        state_ut="Gujarat",
+        caste_category="sc",
         residence="urban",
         qualification="graduate",
         current_sector="it_tech",
+        annual_family_income_inr=180000,
         benefit_intent="credit_loan",
         confirmed=True
     )
 
+    # Warm run / evaluate latency
+    engine.evaluate_profile(prof_test)
     t0 = time.perf_counter()
     match_res = engine.evaluate_profile(prof_test)
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -255,7 +259,7 @@ def run_tests():
     explanation = generate_grounded_explanation(
         scheme_name="Pradhan Mantri MUDRA Yojana",
         verdict="eligible",
-        criteria_results=[{"field": "age", "result": "pass", "quote": "Applicant must be at least 18 years"}],
+        criteria_results=[{"field": "age", "result": "pass", "quote": "Applicant must be at least 18 years", "quote_verified": True}],
         benefit_snippet="Collateral-free micro loans up to Rs 10 Lakhs",
         contextual_reason="Candidate meets all statutory requirements."
     )

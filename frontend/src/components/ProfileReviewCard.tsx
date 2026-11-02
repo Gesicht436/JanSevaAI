@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Edit3, ArrowLeft, ArrowRight, UserCheck } from 'lucide-react';
-import { CitizenProfile, Gender, Qualification, OccupationSector, BenefitIntent } from '../types';
+import { CheckCircle2, Edit3, ArrowLeft, ArrowRight, UserCheck, FileCheck, Check } from 'lucide-react';
+import { CitizenProfile, Gender, Qualification, OccupationSector, BenefitIntent, DocumentType } from '../types';
 
 interface ProfileReviewCardProps {
   profile: CitizenProfile;
@@ -10,6 +10,21 @@ interface ProfileReviewCardProps {
   onBackToIntake?: () => void;
   isLoading: boolean;
 }
+
+const CANONICAL_DOCS: { id: DocumentType; label: string }[] = [
+  { id: 'aadhaar', label: 'Aadhaar Card' },
+  { id: 'ration_card', label: 'Ration Card' },
+  { id: 'income_certificate', label: 'Income Certificate' },
+  { id: 'caste_certificate', label: 'Caste Certificate' },
+  { id: 'domicile_certificate', label: 'Domicile / Residence Certificate' },
+  { id: 'bank_passbook', label: 'Bank Passbook / Account' },
+  { id: 'birth_certificate', label: 'Birth Certificate / Age Proof' },
+  { id: 'disability_certificate', label: 'Disability Certificate (UDID)' },
+  { id: 'land_records', label: 'Land Records (Patta / 7-12)' },
+  { id: 'school_or_college_id', label: 'Student / College ID' },
+  { id: 'marksheet', label: 'Degree / Marksheet' },
+  { id: 'passport_photo', label: 'Passport Photograph' },
+];
 
 const STATES_LIST = [
   'Andaman and Nicobar Islands', 'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar',
@@ -41,6 +56,14 @@ export const ProfileReviewCard: React.FC<ProfileReviewCardProps> = ({
     if (onChange) {
       onChange(updated);
     }
+  };
+
+  const toggleDocHeld = (docId: string) => {
+    const current = edited.documents_held || [];
+    const updatedDocs = current.includes(docId)
+      ? current.filter((d) => d !== docId)
+      : [...current, docId];
+    handleFieldChange('documents_held', updatedDocs);
   };
 
   const getConfBadge = (field: string) => {
@@ -246,6 +269,52 @@ export const ProfileReviewCard: React.FC<ProfileReviewCardProps> = ({
           ) : (
             <p className="text-sm font-semibold text-zinc-900">{edited.benefit_intent?.replace('_', ' ').toUpperCase() || 'General Welfare'}</p>
           )}
+        </div>
+      </div>
+
+      {/* Section: Documents In My Possession */}
+      <div className="p-5 rounded-2xl bg-zinc-50/70 border border-zinc-200/80 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+          <div className="flex items-center space-x-2">
+            <FileCheck className="w-4 h-4 text-zinc-700" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-800">
+              Documents Currently in Your Possession (Checklist)
+            </h3>
+          </div>
+          <span className="text-[11px] text-zinc-500">
+            {(edited.documents_held || []).length} marked ready
+          </span>
+        </div>
+        <p className="text-xs text-zinc-500">
+          Mark documents you have ready. JanSeva AI compares this against official scheme requirements. Unmarked documents will be highlighted as needing confirmation.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pt-1">
+          {CANONICAL_DOCS.map((doc) => {
+            const isHeld = (edited.documents_held || []).includes(doc.id);
+            return (
+              <button
+                key={doc.id}
+                type="button"
+                onClick={() => toggleDocHeld(doc.id)}
+                className={`flex items-center space-x-2 p-2.5 rounded-xl border text-xs text-left transition-all ${
+                  isHeld
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium'
+                    : 'bg-white border-zinc-200/90 text-zinc-700 hover:bg-zinc-100/60'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded flex items-center justify-center border shrink-0 ${
+                    isHeld
+                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                      : 'border-zinc-300 bg-white'
+                  }`}
+                >
+                  {isHeld && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span className="truncate">{doc.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ Compiles arbitrary natural language eligibility text into typed criteria with st
 """
 
 import json
+import re
 from typing import Any, Dict, List, Optional, Tuple
 from ..models.criteria import CriteriaPayload
 
@@ -114,3 +115,20 @@ def compile_once(
     system, user = compile_prompt(scheme_name, eligibility, exclusions, documents, previous_problems)
     data = llm_client.generate_json(system, user, _SCHEMA)
     return CriteriaPayload.model_validate(data)
+
+
+class LLMCompilerClient:
+    """Wrapper adapting repository LLM providers for offline structured criteria compilation."""
+    def __init__(self, model: Optional[str] = None):
+        from ..config import settings
+        self.model = model or settings.GEMINI_MODEL
+
+    def generate_json(self, system: str, user: str, schema: Dict[str, Any]) -> Dict[str, Any]:
+        from ..services.llm import call_llm
+        output = call_llm(system, user, response_schema=schema, temperature=0.0)
+        if not output:
+            raise RuntimeError("LLM compiler unavailable: API returned empty response or credentials unconfigured.")
+        cleaned = re.sub(r"^```(?:json)?", "", output.strip(), flags=re.MULTILINE)
+        cleaned = re.sub(r"```$", "", cleaned.strip(), flags=re.MULTILINE).strip()
+        return json.loads(cleaned)
+

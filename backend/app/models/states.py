@@ -106,16 +106,43 @@ def normalize_state(value: Optional[str]) -> Optional[str]:
     return _CANONICAL_MAP.get(cleaned)
 
 
-def state_matches(citizen_state: Optional[str], scheme_states: List[str], all_states: bool) -> bool:
-    if all_states or "All" in scheme_states or "all" in [s.lower() for s in scheme_states]:
+def is_all_india(scheme_states: List[str], all_states: bool) -> bool:
+    if all_states:
         return True
-    if not citizen_state:
-        return True
+    if not scheme_states:
+        return False
+    lower_states = [s.strip().casefold() for s in scheme_states if s]
+    return any(tok in lower_states for tok in ["all", "all india", "pan india", "pan-india", "all states"])
+
+
+def check_state_scope(citizen_state: Optional[str], scheme_states: List[str], all_states: bool) -> str:
+    """
+    Evaluates citizen state against scheme geographic boundary.
+    Returns:
+      'pass' - scheme is All-India, or citizen's normalized state is in scheme_states.
+      'missing_state' - scheme is state-restricted, but citizen state is missing or unrecognized.
+      'fail' - scheme is state-restricted, and citizen has a valid normalized state outside the restriction.
+      'ambiguous' - all_states is false and scheme_states is empty (unspecified restriction).
+    """
+    if is_all_india(scheme_states, all_states):
+        return "pass"
+
+    if not scheme_states:
+        # Ambiguous scope: not declared all-India, but no states listed
+        return "ambiguous"
+
     norm_cit = normalize_state(citizen_state)
     if not norm_cit:
-        return True
+        # Missing or invalid citizen state on a state-restricted scheme
+        return "missing_state"
+
     for s in scheme_states:
         norm_s = normalize_state(s)
         if norm_s and norm_s == norm_cit:
-            return True
-    return False
+            return "pass"
+
+    return "fail"
+
+
+def state_matches(citizen_state: Optional[str], scheme_states: List[str], all_states: bool) -> bool:
+    return check_state_scope(citizen_state, scheme_states, all_states) == "pass"

@@ -17,9 +17,13 @@ from backend.app.services.db import get_db_connection
 
 def run_compile(args: argparse.Namespace) -> int:
     from backend.app.compiler.seed_criteria import compile_all_schemes
-    print("Compiling criteria for all schemes in Datasets/schemes.db...")
-    count = compile_all_schemes()
-    print(f"Compilation complete: {count} verified criteria compiled.")
+    db_path = getattr(args, "db_path", "backend/Datasets/schemes.db")
+    use_llm = getattr(args, "use_llm", False)
+    slugs = [s.strip() for s in args.slugs.split(",")] if getattr(args, "slugs", None) else None
+    mode_str = "LLM compiler with retry loop" if use_llm else "deterministic rule compiler"
+    print(f"Compiling criteria for schemes in {db_path} using {mode_str}...")
+    count = compile_all_schemes(db_path=db_path, use_llm=use_llm, slug_filter=slugs)
+    print(f"Compilation complete: {count} criteria processed.")
     return 0
 
 
@@ -59,6 +63,9 @@ def main() -> None:
 
     compile_cmd = subparsers.add_parser("compile", help="Compile catalog criteria")
     compile_cmd.add_argument("--force", action="store_true", help="Force recompilation")
+    compile_cmd.add_argument("--use-llm", action="store_true", help="Use structured LLM compiler with retry loop")
+    compile_cmd.add_argument("--db-path", default="backend/Datasets/schemes.db", help="Path to SQLite database")
+    compile_cmd.add_argument("--slugs", default=None, help="Comma-separated scheme slugs to compile")
 
     report_cmd = subparsers.add_parser("report", help="Evaluate profile from JSON file")
     report_cmd.add_argument("--profile", required=True, help="Path to JSON file")

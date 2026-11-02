@@ -14,17 +14,14 @@ router = APIRouter()
 
 @router.post("/explain", response_model=ExplainResponse)
 def explain_scheme(req: ExplainRequest, db: sqlite3.Connection = Depends(get_db)):
-    engine = MatchEngine(db)
-    res = engine.evaluate_profile(req.profile)
+    if not req.profile.confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail="Rule E9: Citizen profile must be confirmed before generating explanation."
+        )
 
-    target_scheme = None
-    for group in (res.results.eligible, res.results.needs_more_info, res.results.ineligible, res.results.closed):
-        for s in group:
-            if s.slug == req.slug:
-                target_scheme = s
-                break
-        if target_scheme:
-            break
+    engine = MatchEngine(db)
+    target_scheme = engine.evaluate_scheme(req.slug, req.profile)
 
     if not target_scheme:
         raise HTTPException(status_code=404, detail=f"Scheme '{req.slug}' not found.")
@@ -37,7 +34,7 @@ def explain_scheme(req: ExplainRequest, db: sqlite3.Connection = Depends(get_db)
         contextual_reason=target_scheme.contextual_match_reason
     )
 
-    citations = [c.quote for c in target_scheme.criteria_results if c.quote_verified]
+    citations = [c.quote for c in target_scheme.criteria_results if c.quote_verified and c.quote]
 
     return ExplainResponse(
         slug=target_scheme.slug,

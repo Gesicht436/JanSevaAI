@@ -15,7 +15,7 @@ router = APIRouter()
 def list_schemes(limit: int = 50, offset: int = 0, db: sqlite3.Connection = Depends(get_db)):
     """List schemes with pagination."""
     cursor = db.cursor()
-    cursor.execute("SELECT slug, name, COALESCE(ministry, department, '') AS ministry_or_department, level FROM schemes LIMIT ? OFFSET ?", (limit, offset))
+    cursor.execute("SELECT slug, name, COALESCE(ministry, department, '') AS ministry_or_department, level FROM schemes ORDER BY name ASC, slug ASC LIMIT ? OFFSET ?", (limit, offset))
     rows = cursor.fetchall()
     return {"schemes": [dict(r) for r in rows], "limit": limit, "offset": offset}
 

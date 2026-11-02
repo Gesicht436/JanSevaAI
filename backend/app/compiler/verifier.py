@@ -6,11 +6,21 @@ and enforces line coverage.
 """
 
 from dataclasses import dataclass
+import html
 import re
 import unicodedata
 from typing import Any, Dict, List, Optional, Tuple, Union
 from ..models.criteria import Criterion
-from Crawler.flattener import clean_line_text
+
+try:
+    from Crawler.flattener import clean_line_text
+except ImportError:
+    def clean_line_text(text: str) -> str:
+        """Collapses whitespace and strips leading/trailing space."""
+        if not text:
+            return ""
+        text = html.unescape(text)
+        return re.sub(r"\s+", " ", text).strip()
 
 
 @dataclass(frozen=True)
@@ -56,16 +66,18 @@ def verify_quote(quote_or_criterion: Union[str, Criterion], line_text_or_lines: 
 
 def extract_numbers_from_text(value: str) -> set[float]:
     """Extracts numeric values including Indian denominations (crore, lakh, lac)."""
-    text = value.casefold().replace(",", "").replace("₹", "").replace("rs.", "")
+    text = value.casefold().replace(",", "").replace("₹", "").replace("rs.", "").replace("rs", "")
     output: set[float] = set()
-    pattern = re.compile(r"(?P<number>\d+(?:\.\d+)?)\s*(?P<unit>crore|crores|lakh|lakhs|lacs|lac)?")
+    pattern = re.compile(r"(?P<number>\d+(?:\.\d+)?)\s*(?P<unit>crore|crores|cr|lakh|lakhs|lacs|lac|k)?\b")
     for match in pattern.finditer(text):
         number = float(match.group("number"))
         unit = match.group("unit")
-        if unit and unit.startswith("crore"):
+        if unit and (unit.startswith("crore") or unit == "cr"):
             number *= 10_000_000
-        elif unit:
+        elif unit and (unit.startswith("lakh") or unit.startswith("lac")):
             number *= 100_000
+        elif unit == "k":
+            number *= 1_000
         output.add(number)
     return output
 
@@ -77,7 +89,7 @@ def verify_numbers(criterion: Criterion) -> Optional[Problem]:
     quote_numbers = extract_numbers_from_text(criterion.source_quote)
     values = criterion.value if isinstance(criterion.value, list) else [criterion.value]
     for val in values:
-        if isinstance(val, (int, float)) and float(val) not in quote_numbers:
+        if isinstance(val, (int, float)) and not isinstance(val, bool) and float(val) not in quote_numbers:
             return Problem(
                 criterion.source_line,
                 "number_not_in_quote",
@@ -119,7 +131,7 @@ def verify_criteria(criteria: List[Criterion], eligibility: List[str], exclusion
 
 
 def verify_scheme_criteria(criteria: List[Dict[str, Any]], source_lines: List[Dict[str, Any]]) -> Tuple[bool, float, List[str]]:
-    """Helper for dictionary-based batch verification."""
+    """Helper for dictionary-based batch verification enforcing exact section + line and numeric validity."""
     if not criteria:
         return False, 0.0, ["No criteria generated"]
 
@@ -137,23 +149,41 @@ def verify_scheme_criteria(criteria: List[Dict[str, Any]], source_lines: List[Di
         quote = c.get("source_quote", "")
         actual_line = line_map.get((sec, line_idx))
 
-        if not actual_line:
-            # Fallback
-            for k, v in line_map.items():
-                if k[1] == line_idx:
-                    actual_line = v
-                    break
-
-        if not actual_line:
-            issues.append(f"Criterion {c.get('id')}: line ({sec}, #{line_idx}) missing")
+        # P0.3: No cross-section fallback! Must match exact (section, line)
+        if actual_line is None:
+            c["quote_verified"] = False
+            issues.append(f"Criterion {c.get('id')}: line ({sec}, #{line_idx}) missing or out of range")
             continue
 
-        if verify_quote(quote, actual_line):
-            c["quote_verified"] = True
-            verified_count += 1
-        else:
+        if not verify_quote(quote, actual_line):
             c["quote_verified"] = False
             issues.append(f"Criterion {c.get('id')}: quote is not verbatim in ({sec}, #{line_idx})")
+            continue
 
+        # Check numeric consistency if applicable
+        if c.get("operator") != "unverifiable" and c.get("value") is not None:
+            quote_numbers = extract_numbers_from_text(quote)
+            raw_vals = c["value"] if isinstance(c["value"], list) else [c["value"]]
+            num_mismatch = False
+            for val in raw_vals:
+                if isinstance(val, (int, float)) and not isinstance(val, bool):
+                    if float(val) not in quote_numbers:
+                        num_mismatch = True
+                        issues.append(f"Criterion {c.get('id')}: numeric value {val} not found in quote")
+                        break
+            if num_mismatch:
+                c["quote_verified"] = False
+                continue
+
+        c["quote_verified"] = True
+        verified_count += 1
+
+    # Enforce source line coverage
+    covered_lines = {(c.get("source_section", "eligibility"), c.get("source_line", 0)) for c in criteria}
+    for k in line_map.keys():
+        if k not in covered_lines:
+            issues.append(f"Line ({k[0]}, #{k[1]}) has no compiled criterion")
+
+    all_covered = all(k in covered_lines for k in line_map.keys())
     ratio = round(verified_count / len(criteria), 4) if criteria else 0.0
-    return (verified_count == len(criteria)) and (len(issues) == 0), ratio, issues
+    return (verified_count == len(criteria)) and (len(issues) == 0) and all_covered, ratio, issues
